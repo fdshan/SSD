@@ -40,8 +40,8 @@ def SSD_loss(pred_confidence, pred_box, ann_confidence, ann_box):
     pred_box = pred_box.reshape((-1, 4))
     ann_box = ann_box.reshape((-1, 4))
 
-    obj = torch.where(ann_confidence == 1)
-    no_obj = torch.where(ann_confidence == 0)
+    obj = torch.where(ann_confidence == 0)
+    no_obj = torch.where(ann_confidence == 1)
 
     loss_conf = F.binary_cross_entropy(pred_confidence[obj], ann_confidence[obj]) + 3 * F.binary_cross_entropy(
         pred_confidence[no_obj], ann_confidence[no_obj])
@@ -104,8 +104,8 @@ class SSD(nn.Module):
             nn.ReLU(),
         )
 
-        self.left1 = nn.Conv2d(in_channels=256, out_channels=16, kernel_size=3, stride=1, padding=1)  # reshape [N, 16, 100]
-        self.right1 = nn.Conv2d(in_channels=256, out_channels=16, kernel_size=3, stride=1, padding=1)  # reshape [N, 16, 100]
+        self.left1 = nn.Conv2d(in_channels=256, out_channels=16, kernel_size=3, stride=1, padding=1, bias=True)  # reshape [N, 16, 100]
+        self.right1 = nn.Conv2d(in_channels=256, out_channels=16, kernel_size=3, stride=1, padding=1, bias=True)  # reshape [N, 16, 100]
 
         self.conv2 = nn.Sequential(
             nn.Conv2d(in_channels=256, out_channels=256, kernel_size=1, stride=1),
@@ -116,8 +116,8 @@ class SSD(nn.Module):
             nn.ReLU(),
         )
 
-        self.left2 = nn.Conv2d(in_channels=256, out_channels=16, kernel_size=3, stride=1, padding=1)  # reshape [N, 16, 25]
-        self.right2 = nn.Conv2d(in_channels=256, out_channels=16, kernel_size=3, stride=1, padding=1)
+        self.left2 = nn.Conv2d(in_channels=256, out_channels=16, kernel_size=3, stride=1, padding=1, bias=True)  # reshape [N, 16, 25]
+        self.right2 = nn.Conv2d(in_channels=256, out_channels=16, kernel_size=3, stride=1, padding=1, bias=True)
 
         self.conv3 = nn.Sequential(
             nn.Conv2d(in_channels=256, out_channels=256, kernel_size=1, stride=1),
@@ -128,8 +128,8 @@ class SSD(nn.Module):
             nn.ReLU(),
         )
 
-        self.left3 = nn.Conv2d(in_channels=256, out_channels=16, kernel_size=3, stride=1, padding=1)  # reshape [N, 16, 9]
-        self.right3 = nn.Conv2d(in_channels=256, out_channels=16, kernel_size=3, stride=1, padding=1)
+        self.left3 = nn.Conv2d(in_channels=256, out_channels=16, kernel_size=3, stride=1, padding=1, bias=True)  # reshape [N, 16, 9]
+        self.right3 = nn.Conv2d(in_channels=256, out_channels=16, kernel_size=3, stride=1, padding=1, bias=True)
 
         self.conv4 = nn.Sequential(
             nn.Conv2d(in_channels=256, out_channels=256, kernel_size=1, stride=1),
@@ -140,8 +140,8 @@ class SSD(nn.Module):
             nn.ReLU(),
         )
 
-        self.left4 = nn.Conv2d(in_channels=256, out_channels=16, kernel_size=1, stride=1)  # reshape [N, 16, 1]
-        self.right4 = nn.Conv2d(in_channels=256, out_channels=16, kernel_size=1, stride=1)
+        self.left4 = nn.Conv2d(in_channels=256, out_channels=16, kernel_size=1, stride=1, bias=True)  # reshape [N, 16, 1]
+        self.right4 = nn.Conv2d(in_channels=256, out_channels=16, kernel_size=1, stride=1, bias=True)
 
     def forward(self, x):
         # input:

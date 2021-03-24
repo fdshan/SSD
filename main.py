@@ -31,7 +31,7 @@ args = parser.parse_args()
 class_num = 4  # cat dog person background
 
 num_epochs = 100
-batch_size = 16
+batch_size = 16  # origin=32, change to 16 due to the cuda mem limitation
 
 
 boxs_default = default_box_generator([10, 5, 3, 1], [0.2, 0.4, 0.6, 0.8], [0.1, 0.3, 0.5, 0.7])
@@ -82,13 +82,14 @@ if not args.test:
         if epoch % 10 == 0:
             pred_confidence_ = pred_confidence[0].detach().cpu().numpy()
             pred_box_ = pred_box[0].detach().cpu().numpy()
+            gt_confidence_ = ann_confidence_[0].numpy()
+            gt_box_ = ann_box_[0].numpy()
             visualize_pred(epoch, "train", pred_confidence_, pred_box_, ann_confidence_[0].numpy(), ann_box_[0].numpy(), images_[0].numpy(), boxs_default)
-            after_nms_pred_conf, after_nms_pred_box, _, _ = non_maximum_suppression(pred_confidence_, pred_box_,
-                                                                                    boxs_default, overlap=0.5,
-                                                                                    threshold=0.5)
-            visualize_pred(epoch, 'NMS_train', after_nms_pred_conf, after_nms_pred_box, ann_confidence_[0].numpy(),
-                           ann_box_[0].numpy(), images_[0].numpy(), boxs_default)
 
+            after_nms_pred_conf, after_nms_pred_box = non_maximum_suppression(pred_confidence_, pred_box_, boxs_default, overlap=0.2, threshold=0.5)
+            after_nms_gt_conf, after_nms_gt_box = non_maximum_suppression(gt_confidence_, gt_box_, boxs_default, overlap=0.2, threshold=0.5)
+            visualize_pred(epoch, 'nms_train', after_nms_pred_conf, after_nms_pred_box, after_nms_gt_conf,
+                           after_nms_gt_box, images_[0].numpy(), boxs_default)
         # VALIDATION
         network.eval()
         
@@ -114,11 +115,13 @@ if not args.test:
             pred_confidence_ = pred_confidence[0].detach().cpu().numpy()
             pred_box_ = pred_box[0].detach().cpu().numpy()
             visualize_pred(epoch, "val", pred_confidence_, pred_box_, ann_confidence_[0].numpy(), ann_box_[0].numpy(), images_[0].numpy(), boxs_default)
-            after_nms_pred_conf, after_nms_pred_box, _, _ = non_maximum_suppression(pred_confidence_, pred_box_,
-                                                                                    boxs_default, overlap=0.5,
-                                                                                    threshold=0.5)
-            visualize_pred(epoch, 'NMS_train', after_nms_pred_conf, after_nms_pred_box, ann_confidence_[0].numpy(),
-                           ann_box_[0].numpy(), images_[0].numpy(), boxs_default)
+
+            after_nms_pred_conf, after_nms_pred_box = non_maximum_suppression(pred_confidence_, pred_box_, boxs_default, overlap=0.2, threshold=0.5)
+            gt_confidence_ = ann_confidence_[0].numpy()
+            gt_box_ = ann_box_[0].numpy()
+            after_nms_gt_conf, after_nms_gt_box = non_maximum_suppression(gt_confidence_, gt_box_, boxs_default, overlap=0.2, threshold=0.5)
+            visualize_pred(epoch, 'nms_val', after_nms_pred_conf, after_nms_pred_box, after_nms_gt_conf,
+                           after_nms_gt_box, images_[0].numpy(), boxs_default)
 
         # optional: compute F1
         # F1score = 2*precision*recall/np.maximum(precision+recall,1e-8)
@@ -130,11 +133,13 @@ if not args.test:
             print('saving net...')
             torch.save(network.state_dict(), 'checkpoints/network{0}.pth'.format(epoch))
 
+    print('save final pth!')
     torch.save(network.state_dict(), 'checkpoints/network_final.pth')
 
 else:
     # TEST
-    dataset_test = COCO("/content/data/test/images/", "/content/data/test/annotations/", class_num, boxs_default, train=False, image_size=320)
+    print('test!')
+    dataset_test = COCO("data/test/images/", "data/test/annotations/", class_num, boxs_default, train=False, image_size=320)
     dataloader_test = torch.utils.data.DataLoader(dataset_test, batch_size=1, shuffle=False, num_workers=0)
     network.load_state_dict(torch.load('checkpoints/network_final.pth'))
     network.eval()
@@ -149,14 +154,18 @@ else:
 
         pred_confidence_ = pred_confidence[0].detach().cpu().numpy()
         pred_box_ = pred_box[0].detach().cpu().numpy()
-        
-        # pred_confidence_,pred_box_ = non_maximum_suppression(pred_confidence_,pred_box_,boxs_default)
-        
+
+        nms_pred_confidence_, nms_pred_box_ = non_maximum_suppression(pred_confidence_, pred_box_, boxs_default, overlap=0.2, threshold=0.5)
+        gt_confidence, gt_box = non_maximum_suppression(ann_confidence_[0].numpy(), ann_box_[0].numpy(), boxs_default, overlap=0.2, threshold=0.5)
         # TODO: save predicted bounding boxes and classes to a txt file.
         # you will need to submit those files for grading this assignment
-        
-        visualize_pred(i, "test", pred_confidence_, pred_box_, ann_confidence_[0].numpy(), ann_box_[0].numpy(), images_[0].numpy(), boxs_default)
-        cv2.waitKey(1000)
+        if i % 100 == 0:
+
+            visualize_pred(i, "test", pred_confidence_, pred_box_, ann_confidence_[0].numpy(), ann_box_[0].numpy(), images_[0].numpy(), boxs_default)
+
+            visualize_pred(i, "nms_test", nms_pred_confidence_, nms_pred_box_, gt_confidence, gt_box, images_[0].numpy(), boxs_default)
+
+        # cv2.waitKey(1000)
 
 
 

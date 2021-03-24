@@ -219,6 +219,8 @@ class COCO(torch.utils.data.Dataset):
     def __getitem__(self, index):
         ann_box = np.zeros([self.box_num, 4], np.float32)  # bounding boxes
         ann_confidence = np.zeros([self.box_num, self.class_num], np.float32)  # one-hot vectors
+        final_box = np.zeros_like(ann_box)  # for multiple objects
+        final_confidence = np.zeros_like(ann_confidence)  # for multiple objects
         # one-hot vectors with four classes
         # [1,0,0,0] -> cat
         # [0,1,0,0] -> dog
@@ -266,4 +268,6 @@ class COCO(torch.utils.data.Dataset):
 
                 ann_box, ann_confidence = match(ann_box, ann_confidence, self.boxs_default, self.threshold, class_id, x_min, y_min, x_max, y_max)
 
-        return image, ann_box, ann_confidence
+                final_box = final_box + ann_box
+                final_confidence = final_confidence + ann_confidence
+        return image, final_box, final_confidence

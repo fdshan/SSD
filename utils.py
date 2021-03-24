@@ -119,13 +119,13 @@ def visualize_pred(epoch, windowname, pred_confidence, pred_box, ann_confidence,
     # if you are using a server, you may not be able to display the image.
     # in that case, please save the image using cv2.imwrite and check the saved image for visualization.
     # cv2.imwrite("results/{0}_example_{1}.jpg".format(windowname, epoch), image)
-    cv2.imwrite("results/{0}_example_{1}.jpg".format(windowname, epoch), image)
+    cv2.imwrite("results/{0}/example_{1}.jpg".format(windowname, epoch), image)
 
 def getBox(pred_box, boxes_default):
     # pred_box [num_of_boxes, 4] - [dx, dy, dw, dh]
     # boxes_default [num_of_boxes, 8] - [px, py, pw, ph, x_min, y_min, x_max, y_max]
     # output: box with g hat [num_of_boxes, 4] - [gx, gy, gw, gh]
-    # box with g hat [num_of_boxes, 8] - [0, 0, 0, 0, gx, gy, gw, gh]
+    # box with g hat [num_of_boxes, 8] - [0, 0, 0, 0, x_min, y_min, x_max, y_max]
     box4 = np.zeros_like(pred_box)
     box8 = np.zeros_like(boxes_default)
 
@@ -137,15 +137,20 @@ def getBox(pred_box, boxes_default):
     py = boxes_default[:, 1]
     pw = boxes_default[:, 2]
     ph = boxes_default[:, 3]
-    box4[:, 0] = pw*dx+px
-    box4[:, 1] = ph*dy+py
-    box4[:, 2] = pw*np.exp(dw)
-    box4[:, 3] = ph*np.exp(dh)
-    box8[:, 4] = pw * dx + px
-    box8[:, 5] = ph * dy + py
-    box8[:, 6] = pw * np.exp(dw)
-    box8[:, 7] = ph * np.exp(dh)
+    gx = pw*dx+px
+    gy = ph*dy+py
+    gw = pw*np.exp(dw)
+    gh = ph*np.exp(dh)
+    box4[:, 0] = gx
+    box4[:, 1] = gy
+    box4[:, 2] = gw
+    box4[:, 3] = gh
+    box8[:, 4] = gx-gw/2
+    box8[:, 5] = gy-gh/2
+    box8[:, 6] = gx+gw/2
+    box8[:, 7] = gy+gh/2
     return box4, box8
+
 
 def non_maximum_suppression(confidence_, box_, boxs_default, overlap, threshold):
     # input:
@@ -162,47 +167,72 @@ def non_maximum_suppression(confidence_, box_, boxs_default, overlap, threshold)
     # visualize_pred(windowname, pred_confidence, pred_box, ann_confidence, ann_box, image_, boxs_default)
     
     #TODO: non maximum suppression
-    result_box = []
-    result_confidence = []
+    result_box = np.zeros_like(box_)
+    result_confidence = np.zeros_like(confidence_)
     before_box = box_
     before_confidence = confidence_
     pred_box4, pred_box8 = getBox(box_, boxs_default)
     for class_num in range(0, 3):  # class cat, dog or person
         # Select the bounding box in A with the highest probability in class cat, dog or person
         cur_class = confidence_[:, class_num]  # [540]
+        idx = np.where(cur_class)[0]
+        # print(len(idx))
         max_idx = np.argmax(cur_class)
         max_prob = cur_class[max_idx]
-        max_box = pred_box4[max_idx]
+        max_box = box_[max_idx]  # [tx, ty, tw, th]
+        # print(max_idx)
+        # print(max_prob)
+
         # If that highest probability is greater than a threshold (threshold=0.5), proceed;
         # otherwise, the NMS is done
         while max_prob > threshold:
-            result_box.append(max_box)
-            result_confidence.append(max_prob)
-            # confidence_[max_idx] = 0
-            # box_[max_idx] = 0
+            # idx = np.setdiff1d(idx, max_idx)  # remove the current max from A
+            # print('idx', idx)
+            result_box[max_idx, :] = max_box
+            result_confidence[max_idx, :] = confidence_[max_idx]
+            confidence_[max_idx, :] = 0
+            box_[max_idx, :] = 0
             gx, gy, gw, gh = pred_box4[max_idx]
             x_min = gx - gw / 2
             y_min = gy - gh / 2
             x_max = gx + gw / 2
             y_max = gx + gh / 2
             # iou(boxs_default, x_min, y_min, x_max, y_max):
-            ious = iou(pred_box8, x_min, y_min, x_max, y_max)  # shape = [num_of_boxes]
+            ious = iou(pred_box8, x_min, y_min, x_max, y_max)  # shape = [540]
+            # b = np.unique(ious)
+            # c = np.unique(confidence_)
             # For all boxes in A, if a box has IOU greater than an overlap threshold (overlap=0.5) with x,
             # remove that box from A
-            ious_true = ious[ious < overlap]
-            idx = ious_true.index(True)
-            cur_class = confidence_[idx, class_num]
+            ious_true = ious[ious > overlap]
+            del_idx = np.where(ious > overlap)[0]  # index to delete
+            confidence_[del_idx, :] = 0
+            box_[del_idx, :] = 0
+            # print('before', len(idx))
+            # idx = np.delete(idx, del_idx)  # remove boxes from A
+            # if len(idx) == 0:  # A is empty, break
+            #    break
+            # print('idx after', idx)
+            # print(len(idx))
+            # a = len(idx)
+            # cur_class = confidence_[idx, class_num]
+            # max_prob = np.max(cur_class)
+            # max_idx = idx[confidence_[idx, class_num] == max_prob][0]  # make sure max is picked
+            # max_box = pred_box4[max_idx]
             max_idx = np.argmax(cur_class)
             max_prob = cur_class[max_idx]
-            max_box = pred_box4[max_idx]
+            max_box = box_[max_idx]  # [gx, gy, gw, gh]
     # convert to np array
-    result_box = np.asarray(result_box)
-    result_confidence = np.asarray(result_confidence)
+    # result_box = np.asarray(result_box)
+    # result_confidence = np.asarray(result_confidence)
 
-    return result_confidence, result_box, before_confidence, before_box
+    return result_confidence, result_box
 
+
+'''
 if __name__ == '__main__':
     a = 0
+'''
+
 
 
 
