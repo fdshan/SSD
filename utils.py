@@ -1,7 +1,6 @@
 import numpy as np
 import cv2
 from dataset import iou
-import os
 
 
 colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255)]
@@ -36,13 +35,11 @@ def visualize_pred(epoch, windowname, pred_confidence, pred_box, ann_confidence,
     # image2: draw ground truth "default" boxes on image2 (to show that you have assigned the object to the correct cell/cells)
     # image3: draw network-predicted bounding boxes on image3
     # image4: draw network-predicted "default" boxes on image4 (to show which cell does your network think that contains an object)
-    
-    
-    #draw ground truth
+
+    # draw ground truth
     for i in range(len(ann_confidence)):
         for j in range(class_num):
             if ann_confidence[i, j] > 0.5:  # if the network/ground_truth has high confidence on cell[i] with class[j]
-                # TODO:
                 # image1: draw ground truth bounding boxes on image1
                 px = boxs_default[i, 0]
                 py = boxs_default[i, 1]
@@ -65,6 +62,7 @@ def visualize_pred(epoch, windowname, pred_confidence, pred_box, ann_confidence,
                 color = colors[j] #use red green blue to represent different classes
                 thickness = 2
                 image1 = cv2.rectangle(image1, start_point, end_point, color, thickness)
+
                 # image2: draw ground truth "default" boxes on image2 (to show that you have assigned the object to the correct cell/cells)
                 cell_x_min = int(boxs_default[i, 4]*width)
                 cell_y_min = int(boxs_default[i, 5]*height)
@@ -77,7 +75,6 @@ def visualize_pred(epoch, windowname, pred_confidence, pred_box, ann_confidence,
     for i in range(len(pred_confidence)):
         for j in range(class_num):
             if pred_confidence[i, j] > 0.5:
-                # TODO:
                 # image3: draw network-predicted bounding boxes on image3
                 px = boxs_default[i, 0]
                 py = boxs_default[i, 1]
@@ -100,6 +97,7 @@ def visualize_pred(epoch, windowname, pred_confidence, pred_box, ann_confidence,
                 color = colors[j]  # use red green blue to represent different classes
                 thickness = 2
                 image3 = cv2.rectangle(image3, start_point, end_point, color, thickness)
+
                 # image4: draw network-predicted "default" boxes on image4 (to show which cell does your network think that contains an object)
                 cell_x_min = int(boxs_default[i, 4] * width)
                 cell_y_min = int(boxs_default[i, 5] * height)
@@ -108,6 +106,7 @@ def visualize_pred(epoch, windowname, pred_confidence, pred_box, ann_confidence,
                 cell_start = (cell_x_min, cell_y_min)
                 cell_end = (cell_x_max, cell_y_max)
                 image4 = cv2.rectangle(image4, cell_start, cell_end, color, thickness)
+
     # combine four images into one
     h, w, _ = image1.shape
     image = np.zeros([h*2, w*2, 3], np.uint8)
@@ -115,11 +114,6 @@ def visualize_pred(epoch, windowname, pred_confidence, pred_box, ann_confidence,
     image[:h, w:] = image2
     image[h:, :w] = image3
     image[h:, w:] = image4
-    # cv2.imshow(windowname+" [[gt_box,gt_dft],[pd_box,pd_dft]]",image)
-    # cv2.waitKey(1)
-    # if you are using a server, you may not be able to display the image.
-    # in that case, please save the image using cv2.imwrite and check the saved image for visualization.
-    # cv2.imwrite("results/{0}_example_{1}.jpg".format(windowname, epoch), image)
     cv2.imwrite("results/{0}/example_{1}.jpg".format(windowname, epoch), image)
 
 def getBox(pred_box, boxes_default):
@@ -161,13 +155,6 @@ def non_maximum_suppression(confidence_, box_, boxs_default, overlap, threshold)
     # overlap      -- if two bounding boxes in the same class have iou > overlap, then one of the boxes must be suppressed
     # threshold    -- if one class in one cell has confidence > threshold, then consider this cell carrying a bounding box with this class.
     
-    # output:
-    # depends on your implementation.
-    # if you wish to reuse the visualize_pred function above, you need to return a "suppressed" version of confidence [5,5, num_of_classes].
-    # you can also directly return the final bounding boxes and classes, and write a new visualization function for that.
-    # visualize_pred(windowname, pred_confidence, pred_box, ann_confidence, ann_box, image_, boxs_default)
-    
-    #TODO: non maximum suppression
     result_box = np.zeros_like(box_)
     result_confidence = np.zeros_like(confidence_)
     before_box = box_
@@ -176,19 +163,14 @@ def non_maximum_suppression(confidence_, box_, boxs_default, overlap, threshold)
     for class_num in range(0, 3):  # class cat, dog or person
         # Select the bounding box in A with the highest probability in class cat, dog or person
         cur_class = confidence_[:, class_num]  # [540]
-        idx = np.where(cur_class)[0]
-        # print(len(idx))
         max_idx = np.argmax(cur_class)
         max_prob = cur_class[max_idx]
         max_box = box_[max_idx]  # [tx, ty, tw, th]
-        # print(max_idx)
-        # print(max_prob)
 
         # If that highest probability is greater than a threshold (threshold=0.5), proceed;
         # otherwise, the NMS is done
         while max_prob > threshold:
             # idx = np.setdiff1d(idx, max_idx)  # remove the current max from A
-            # print('idx', idx)
             result_box[max_idx, :] = max_box
             result_confidence[max_idx, :] = confidence_[max_idx]
             confidence_[max_idx, :] = 0
@@ -200,49 +182,30 @@ def non_maximum_suppression(confidence_, box_, boxs_default, overlap, threshold)
             y_max = gx + gh / 2
             # iou(boxs_default, x_min, y_min, x_max, y_max):
             ious = iou(pred_box8, x_min, y_min, x_max, y_max)  # shape = [540]
-            # b = np.unique(ious)
-            # c = np.unique(confidence_)
+
             # For all boxes in A, if a box has IOU greater than an overlap threshold (overlap=0.5) with x,
             # remove that box from A
-            ious_true = ious[ious > overlap]
             del_idx = np.where(ious > overlap)[0]  # index to delete
             confidence_[del_idx, :] = 0
             box_[del_idx, :] = 0
-            # print('before', len(idx))
-            # idx = np.delete(idx, del_idx)  # remove boxes from A
-            # if len(idx) == 0:  # A is empty, break
-            #    break
-            # print('idx after', idx)
-            # print(len(idx))
-            # a = len(idx)
-            # cur_class = confidence_[idx, class_num]
-            # max_prob = np.max(cur_class)
-            # max_idx = idx[confidence_[idx, class_num] == max_prob][0]  # make sure max is picked
-            # max_box = pred_box4[max_idx]
             max_idx = np.argmax(cur_class)
             max_prob = cur_class[max_idx]
             max_box = box_[max_idx]  # [gx, gy, gw, gh]
-    # convert to np array
-    # result_box = np.asarray(result_box)
-    # result_confidence = np.asarray(result_confidence)
 
     return result_confidence, result_box
 
 
 def getText(cur_height, cur_width, save_path, img_name, image_, pred_box, pred_confidence, boxs_default):
     # save_path - predicted_boxes/test, predicted_boxes/train
-    #print(image_.shape)
+    # cur_width, cur_height - original image h & w
+
     image = image_.reshape((3, 320, 320))
     _, height, width = image.shape
     image = np.transpose(image, (1, 2, 0))
-    #print('after: ', image.shape)
     g_hat, _ = getBox(pred_box, boxs_default)
     a = np.where(pred_confidence != 0)[0]
     a = np.unique(a)
-    #b = np.where(pred_box != 0)[0]
-    #b = np.unique(b)
     box_num = a
-    #print(type(box_num))
     content = []
     gx = g_hat[:, 0]  # center_x
     gy = g_hat[:, 1]  # center_y
@@ -250,20 +213,12 @@ def getText(cur_height, cur_width, save_path, img_name, image_, pred_box, pred_c
     gh = g_hat[:, 3]  # height
     for i in box_num:
         class_id = np.argmax(pred_confidence[i, :])
-        #print(class_id)
         if class_id != 3:
-            #print('here')
             x_min = (gx[i] - gw[i] / 2) * cur_width
-            #xx_min = float("{:.4f}".format(x_min))
             y_min = (gy[i] - gh[i] / 2) * cur_height
-            #yy_min = float("{:.4f}".format(y_min))
             w = gw[i] * cur_width
-            #ww = float("{:.4f}".format(w))
             h = gh[i] * cur_height
-            #hh = float("{:.4f}".format(h))
             each_line = [class_id, x_min, y_min, w, h]
-            #cv2.rectangle(image, (int(x_min), int(y_min)), (int(x_min+w), int(y_min+h)), (255, 0, 0), 2)
-            #cv2.imwrite("example.jpg", image)
             content.append(each_line)
 
     result = np.asarray(content)

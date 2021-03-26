@@ -24,17 +24,6 @@ def SSD_loss(pred_confidence, pred_box, ann_confidence, ann_box):
     # output:
     # loss -- a single number for the value of the loss function, [1]
     
-    # TODO: write a loss function for SSD
-    #
-    # For confidence (class labels), use cross entropy (F.cross_entropy)
-    # You can try F.binary_cross_entropy and see which loss is better
-    # For box (bounding boxes), use smooth L1 (F.smooth_l1_loss)
-    #
-    # Note that you need to consider cells carrying objects and empty cells separately.
-    # I suggest you to reshape confidence to [batch_size*num_of_boxes, num_of_classes]
-    # and reshape box to [batch_size*num_of_boxes, 4].
-    # Then you need to figure out how you can get the indices of all cells carrying objects,
-    # and use confidence[indices], box[indices] to select those cells.
     pred_confidence = pred_confidence.reshape((-1, 4))
     ann_confidence = ann_confidence.reshape((-1, 4))
     pred_box = pred_box.reshape((-1, 4))
@@ -155,42 +144,42 @@ class SSD(nn.Module):
         x = x/255.0  # normalize image. If you already normalized your input image in the dataloader, remove this line.
         
         # TODO: define forward
-        #print('x', x.shape)
+        # print('x', x.shape)
         x1 = self.conv1(x)
-        #print('x1', x1.shape)
+        # print('x1', x1.shape)
 
         x2 = self.conv2(x1)
-        #print('x2', x2.shape)
+        # print('x2', x2.shape)
         x_left1 = self.left1(x1)
-        #print('x_left1', x_left1.shape)
+        # print('x_left1', x_left1.shape)
         x_left1 = x_left1.reshape((-1, 16, 100))
         x_right1 = self.right1(x1)
-        #print('x_right1', x_right1.shape)
+        # print('x_right1', x_right1.shape)
         x_right1 = x_right1.reshape((-1, 16, 100))
 
         x3 = self.conv3(x2)
-        #print('x3', x3.shape)
+        # print('x3', x3.shape)
         x_left2 = self.left2(x2)
-        #print('x_left2', x_left2.shape)
+        # print('x_left2', x_left2.shape)
         x_left2 = x_left2.reshape((-1, 16, 25))
         x_right2 = self.right2(x2)
-        #print('x_right2', x_right2.shape)
+        # print('x_right2', x_right2.shape)
         x_right2 = x_right2.reshape((-1, 16, 25))
 
         x4 = self.conv4(x3)
-        #print('x4', x4.shape)
+        # print('x4', x4.shape)
         x_left3 = self.left3(x3)
-        #print('x_left3', x_left3.shape)
+        # print('x_left3', x_left3.shape)
         x_left3 = x_left3.reshape((-1, 16, 9))
         x_right3 = self.right3(x3)
-        #print('x_right3', x_right3.shape)
+        # print('x_right3', x_right3.shape)
         x_right3 = x_right3.reshape((-1, 16, 9))
 
         x_left4 = self.left4(x4)
-        #print('x_left4', x_left4.shape)
+        # print('x_left4', x_left4.shape)
         x_left4 = x_left4.reshape((-1, 16, 1))
         x_right4 = self.right4(x4)
-        #print('x_right4', x_right4.shape)
+        # print('x_right4', x_right4.shape)
         x_right4 = x_right4.reshape((-1, 16, 1))
 
         x_bbox = torch.cat((x_left1, x_left2, x_left3, x_left4), dim=2)  # [N, 16, 135]
@@ -202,12 +191,6 @@ class SSD(nn.Module):
         x_conf = x_conf.reshape((-1, 540, 4))
         confidence = torch.softmax(x_conf, dim=2)
 
-        # should you apply softmax to confidence? (search the pytorch tutorial for F.cross_entropy.) If yes, which dimension should you apply softmax?
-        
-        # sanity check: print the size/shape of the confidence and bboxes, make sure they are as follows:
-        # confidence - [batch_size,4*(10*10+5*5+3*3+1*1),num_of_classes]
-        # bboxes - [batch_size,4*(10*10+5*5+3*3+1*1),4]
-        
         return confidence, bboxes
 
 '''
