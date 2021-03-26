@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 from dataset import iou
+import os
 
 
 colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255)]
@@ -227,6 +228,47 @@ def non_maximum_suppression(confidence_, box_, boxs_default, overlap, threshold)
 
     return result_confidence, result_box
 
+
+def getText(cur_height, cur_width, save_path, img_name, image_, pred_box, pred_confidence, boxs_default):
+    # save_path - predicted_boxes/test, predicted_boxes/train
+    #print(image_.shape)
+    image = image_.reshape((3, 320, 320))
+    _, height, width = image.shape
+    image = np.transpose(image, (1, 2, 0))
+    #print('after: ', image.shape)
+    g_hat, _ = getBox(pred_box, boxs_default)
+    a = np.where(pred_confidence != 0)[0]
+    a = np.unique(a)
+    #b = np.where(pred_box != 0)[0]
+    #b = np.unique(b)
+    box_num = a
+    #print(type(box_num))
+    content = []
+    gx = g_hat[:, 0]  # center_x
+    gy = g_hat[:, 1]  # center_y
+    gw = g_hat[:, 2]  # width
+    gh = g_hat[:, 3]  # height
+    for i in box_num:
+        class_id = np.argmax(pred_confidence[i, :])
+        #print(class_id)
+        if class_id != 3:
+            #print('here')
+            x_min = (gx[i] - gw[i] / 2) * cur_width
+            #xx_min = float("{:.4f}".format(x_min))
+            y_min = (gy[i] - gh[i] / 2) * cur_height
+            #yy_min = float("{:.4f}".format(y_min))
+            w = gw[i] * cur_width
+            #ww = float("{:.4f}".format(w))
+            h = gh[i] * cur_height
+            #hh = float("{:.4f}".format(h))
+            each_line = [class_id, x_min, y_min, w, h]
+            #cv2.rectangle(image, (int(x_min), int(y_min)), (int(x_min+w), int(y_min+h)), (255, 0, 0), 2)
+            #cv2.imwrite("example.jpg", image)
+            content.append(each_line)
+
+    result = np.asarray(content)
+    paths = save_path + img_name + '.txt'
+    np.savetxt(paths, result)
 
 '''
 if __name__ == '__main__':

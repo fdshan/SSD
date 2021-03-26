@@ -62,7 +62,7 @@ if not args.test:
         avg_loss = 0
         avg_count = 0
         for i, data in enumerate(dataloader, 0):
-            images_, ann_box_, ann_confidence_ = data
+            images_, ann_box_, ann_confidence_, _, _, _= data
             images = images_.cuda()
             ann_box = ann_box_.cuda()
             ann_confidence = ann_confidence_.cuda()
@@ -79,17 +79,17 @@ if not args.test:
         print('[%d] time: %f train loss: %f' % (epoch, time.time()-start_time, avg_loss/avg_count))
         
         # visualize
-        if epoch % 10 == 0:
+        if epoch % 5 == 0:
             pred_confidence_ = pred_confidence[0].detach().cpu().numpy()
             pred_box_ = pred_box[0].detach().cpu().numpy()
-            gt_confidence_ = ann_confidence_[0].numpy()
-            gt_box_ = ann_box_[0].numpy()
+            #gt_confidence_ = ann_confidence_[0].numpy()
+            #gt_box_ = ann_box_[0].numpy()
             visualize_pred(epoch, "train", pred_confidence_, pred_box_, ann_confidence_[0].numpy(), ann_box_[0].numpy(), images_[0].numpy(), boxs_default)
 
-            after_nms_pred_conf, after_nms_pred_box = non_maximum_suppression(pred_confidence_, pred_box_, boxs_default, overlap=0.2, threshold=0.5)
-            after_nms_gt_conf, after_nms_gt_box = non_maximum_suppression(gt_confidence_, gt_box_, boxs_default, overlap=0.2, threshold=0.5)
-            visualize_pred(epoch, 'nms_train', after_nms_pred_conf, after_nms_pred_box, after_nms_gt_conf,
-                           after_nms_gt_box, images_[0].numpy(), boxs_default)
+            after_nms_pred_conf, after_nms_pred_box = non_maximum_suppression(pred_confidence_, pred_box_, boxs_default, overlap=0.2, threshold=0.6)
+            # after_nms_gt_conf, after_nms_gt_box = non_maximum_suppression(gt_confidence_, gt_box_, boxs_default, overlap=0.2, threshold=0.6)
+            visualize_pred(epoch, 'nms_train', after_nms_pred_conf, after_nms_pred_box, ann_confidence_[0].numpy(),
+                           ann_box_[0].numpy(), images_[0].numpy(), boxs_default)
         # VALIDATION
         network.eval()
         
@@ -97,7 +97,7 @@ if not args.test:
         # use the training set to train and the validation set to evaluate
         
         for i, data in enumerate(dataloader_test, 0):
-            images_, ann_box_, ann_confidence_ = data
+            images_, ann_box_, ann_confidence_, _, _, _ = data
             images = images_.cuda()
             ann_box = ann_box_.cuda()
             ann_confidence = ann_confidence_.cuda()
@@ -111,17 +111,17 @@ if not args.test:
             # update_precision_recall(pred_confidence_, pred_box_, ann_confidence_.numpy(), ann_box_.numpy(), boxs_default,precision_,recall_,thres)
         
         # visualize
-        if epoch % 10 == 0:
+        if epoch % 5 == 0:
             pred_confidence_ = pred_confidence[0].detach().cpu().numpy()
             pred_box_ = pred_box[0].detach().cpu().numpy()
             visualize_pred(epoch, "val", pred_confidence_, pred_box_, ann_confidence_[0].numpy(), ann_box_[0].numpy(), images_[0].numpy(), boxs_default)
 
-            after_nms_pred_conf, after_nms_pred_box = non_maximum_suppression(pred_confidence_, pred_box_, boxs_default, overlap=0.2, threshold=0.5)
-            gt_confidence_ = ann_confidence_[0].numpy()
-            gt_box_ = ann_box_[0].numpy()
-            after_nms_gt_conf, after_nms_gt_box = non_maximum_suppression(gt_confidence_, gt_box_, boxs_default, overlap=0.2, threshold=0.5)
-            visualize_pred(epoch, 'nms_val', after_nms_pred_conf, after_nms_pred_box, after_nms_gt_conf,
-                           after_nms_gt_box, images_[0].numpy(), boxs_default)
+            after_nms_pred_conf, after_nms_pred_box = non_maximum_suppression(pred_confidence_, pred_box_, boxs_default, overlap=0.2, threshold=0.6)
+            #gt_confidence_ = ann_confidence_[0].numpy()
+            #gt_box_ = ann_box_[0].numpy()
+            # after_nms_gt_conf, after_nms_gt_box = non_maximum_suppression(gt_confidence_, gt_box_, boxs_default, overlap=0.2, threshold=0.6)
+            visualize_pred(epoch, 'nms_val', after_nms_pred_conf, after_nms_pred_box, ann_confidence_[0].numpy(),
+                           ann_box_[0].numpy(), images_[0].numpy(), boxs_default)
 
         # optional: compute F1
         # F1score = 2*precision*recall/np.maximum(precision+recall,1e-8)
@@ -139,13 +139,19 @@ if not args.test:
 else:
     # TEST
     print('test!')
-    dataset_test = COCO("data/test/images/", "data/test/annotations/", class_num, boxs_default, train=False, image_size=320)
+    dataset_test = COCO("data/train/images/", "data/train/annotations/", class_num, boxs_default, train=False, image_size=320)
     dataloader_test = torch.utils.data.DataLoader(dataset_test, batch_size=1, shuffle=False, num_workers=0)
     network.load_state_dict(torch.load('checkpoints/network_final.pth'))
     network.eval()
-    
+    count = 0
     for i, data in enumerate(dataloader_test, 0):
-        images_, ann_box_, ann_confidence_ = data
+
+        #num = "%05d" % i
+
+        images_, ann_box_, ann_confidence_, cur_name, height, width = data
+        # print(type(cur_name))
+        num = cur_name[0]
+        # print(num)
         images = images_.cuda()
         ann_box = ann_box_.cuda()
         ann_confidence = ann_confidence_.cuda()
@@ -155,17 +161,41 @@ else:
         pred_confidence_ = pred_confidence[0].detach().cpu().numpy()
         pred_box_ = pred_box[0].detach().cpu().numpy()
 
-        nms_pred_confidence_, nms_pred_box_ = non_maximum_suppression(pred_confidence_, pred_box_, boxs_default, overlap=0.2, threshold=0.5)
-        gt_confidence, gt_box = non_maximum_suppression(ann_confidence_[0].numpy(), ann_box_[0].numpy(), boxs_default, overlap=0.2, threshold=0.5)
+        #gt_confidence, gt_box = non_maximum_suppression(ann_confidence_[0].numpy(), ann_box_[0].numpy(), boxs_default, overlap=0.2, threshold=0.6)
         # TODO: save predicted bounding boxes and classes to a txt file.
         # you will need to submit those files for grading this assignment
+        # getText(save_path, img_name, image, pred_box, pred_confidence, boxs_default)
+
+        #if i % 100 == 0:
+
+        #visualize_pred(i, "test", pred_confidence_, pred_box_, ann_confidence_[0].numpy(), ann_box_[0].numpy(), images_[0].numpy(), boxs_default)
+        nms_pred_confidence_, nms_pred_box_ = non_maximum_suppression(pred_confidence_, pred_box_, boxs_default,
+                                                                          overlap=0.2, threshold=0.6)
+        #print(nms_pred_box_.shape)
+        '''
+        
+        if i % 10 == 0:
+            print(num)
+            a = np.where(nms_pred_confidence_ != 0)[0]
+            a = np.unique(a)
+            b = np.where(nms_pred_box_ != 0)[0]
+            b = np.unique(b)
+            print('conf', a, nms_pred_confidence_[a])
+            print('box', b, nms_pred_box_[b])
+        '''
+        a = np.where(nms_pred_confidence_ != 0)[0]
+        a = np.unique(a)
+        #print(num)
+        #print('conf', a, nms_pred_confidence_[a])
+        if len(a) == 0:
+            count += 1
+        #getText(save_path, img_name, image_, pred_box, pred_confidence, boxs_default)
+        getText(height, width, 'predicted_boxes/train/', num, images_, nms_pred_box_, nms_pred_confidence_, boxs_default)
+        #print('save txt done!')
+        visualize_pred(num, "nms_test", nms_pred_confidence_, nms_pred_box_, ann_confidence_[0].numpy(), ann_box_[0].numpy(), images_[0].numpy(), boxs_default)
         if i % 100 == 0:
-
-            visualize_pred(i, "test", pred_confidence_, pred_box_, ann_confidence_[0].numpy(), ann_box_[0].numpy(), images_[0].numpy(), boxs_default)
-
-            visualize_pred(i, "nms_test", nms_pred_confidence_, nms_pred_box_, gt_confidence, gt_box, images_[0].numpy(), boxs_default)
-
+            print('{} image...'.format(i))
         # cv2.waitKey(1000)
 
-
+    print(count)
 

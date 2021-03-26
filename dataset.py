@@ -38,7 +38,8 @@ def default_box_generator(layers, large_scale, small_scale):
     for cell_size in layers:  # cell_size [10, 5, 3, 1]
         lsize = large_scale[idx]
         ssize = small_scale[idx]
-        cell_step = 1/cell_size
+        cell_step = 1 / cell_size
+        # cur_boxes = np.zeros((cell_size*cell_size, 4, 8))
         box1 = [ssize, ssize]
         box2 = [lsize, lsize]
         box3 = [lsize * np.sqrt(2), lsize / np.sqrt(2)]
@@ -48,21 +49,23 @@ def default_box_generator(layers, large_scale, small_scale):
         # [x_center, y_center, box_width, box_height, x_min, y_min, x_max, y_max]
         for x in range(cell_size):
             for y in range(cell_size):
-                center_x = x*cell_step+cell_step/2
-                center_y = y*cell_step+cell_step/2
+                center_x = x * cell_step + cell_step / 2
+                center_y = y * cell_step + cell_step / 2
 
                 # first box
-                x_min1 = center_x-box1[0]/2
-                y_min1 = center_y-box1[1]/2
-                x_max1 = center_x+box1[0]/2
-                y_max1 = center_y+box1[1]/2
+                x_min1 = center_x - box1[0] / 2
+                y_min1 = center_y - box1[1] / 2
+                x_max1 = center_x + box1[0] / 2
+                y_max1 = center_y + box1[1] / 2
                 # clipping
+                '''
                 if x_min1 < 0: x_min1 = 0
                 if y_min1 < 0: y_min1 = 0
                 if x_max1 > 1: x_max1 = 1
                 if y_max1 > 1: y_max1 = 1
                 if box1[0] > 1: box1[0] = 1
                 if box1[1] > 1: box1[1] = 1
+                '''
                 boxes[num, 0, :] = [center_x, center_y, box1[0], box1[1], x_min1, y_min1, x_max1, y_max1]
 
                 # second box
@@ -70,12 +73,14 @@ def default_box_generator(layers, large_scale, small_scale):
                 y_min2 = center_y - box2[1] / 2
                 x_max2 = center_x + box2[0] / 2
                 y_max2 = center_y + box2[1] / 2
+                '''
                 if x_min2 < 0: x_min2 = 0
                 if y_min2 < 0: y_min2 = 0
                 if x_max2 > 1: x_max2 = 1
                 if y_max2 > 1: y_max2 = 1
                 if box2[0] > 1: box2[0] = 1
                 if box2[1] > 1: box2[1] = 1
+                '''
                 boxes[num, 1, :] = [center_x, center_y, box2[0], box2[1], x_min2, y_min2, x_max2, y_max2]
 
                 # third box
@@ -83,12 +88,14 @@ def default_box_generator(layers, large_scale, small_scale):
                 y_min3 = center_y - box3[1] / 2
                 x_max3 = center_x + box3[0] / 2
                 y_max3 = center_y + box3[1] / 2
+                '''
                 if x_min3 < 0: x_min3 = 0
                 if y_min3 < 0: y_min3 = 0
                 if x_max3 > 1: x_max3 = 1
                 if y_max3 > 1: y_max3 = 1
                 if box3[0] > 1: box3[0] = 1
                 if box3[1] > 1: box3[1] = 1
+                '''
                 boxes[num, 2, :] = [center_x, center_y, box3[0], box3[1], x_min3, y_min3, x_max3, y_max3]
 
                 # forth box
@@ -96,16 +103,20 @@ def default_box_generator(layers, large_scale, small_scale):
                 y_min4 = center_y - box4[1] / 2
                 x_max4 = center_x + box4[0] / 2
                 y_max4 = center_y + box4[1] / 2
+                '''
                 if x_min4 < 0: x_min4 = 0
                 if y_min4 < 0: y_min4 = 0
                 if x_max4 > 1: x_max4 = 1
                 if y_max4 > 1: y_max4 = 1
                 if box4[0] > 1: box4[0] = 1
                 if box4[1] > 1: box4[1] = 1
+                '''
+
                 boxes[num, 3, :] = [center_x, center_y, box4[0], box4[1], x_min4, y_min4, x_max4, y_max4]
                 num += 1
         idx += 1
-    boxes = boxes.reshape((540, 8))  # [box_num,8]
+
+    boxes = boxes.reshape((540, 8))
     return boxes
 
 
@@ -135,7 +146,7 @@ def match(ann_box, ann_confidence, boxs_default, threshold, cat_id, x_min, y_min
     # threshold               -- if a default bounding box and the ground truth bounding box have iou>threshold, then this default bounding box will be used as an anchor
     # cat_id                  -- class id, 0-cat, 1-dog, 2-person
     # x_min,y_min,x_max,y_max -- bounding box
-    
+
     # compute iou between the default bounding boxes and the ground truth bounding box
     ious = iou(boxs_default, x_min, y_min, x_max, y_max)
     # print(np.unique(ious))
@@ -151,16 +162,21 @@ def match(ann_box, ann_confidence, boxs_default, threshold, cat_id, x_min, y_min
     # this default bounding box will be used to update the corresponding entry in ann_box and ann_confidence
     if True not in ious_true:
         ious_true = np.argmax(ious)  # make sure at least one default bounding box is used
-        # print('here')
+        #print('here')
         # idx = np.where(ious_true == True)
         a = boxs_default[ious_true]
-        # obj_cell = idx[0]
-
-        px, py, pw, ph = boxs_default[ious_true][0:4]
+        #print(a.shape)
+        #obj_cell = idx[0]
+        px = boxs_default[ious_true][0]
+        py = boxs_default[ious_true][1]
+        pw = boxs_default[ious_true][2]
+        ph = boxs_default[ious_true][3]
+        #px, py, pw, ph = boxs_default[ious_true][0:4]
         tx = (gx - px) / pw
         ty = (gy - py) / ph
         tw = np.log(gw / pw)
         th = np.log(gh / ph)
+        '''
         if tx < 0: tx = 0  # clipping
         if tx > 1: tx = 1
         if ty < 0: ty = 0
@@ -169,9 +185,11 @@ def match(ann_box, ann_confidence, boxs_default, threshold, cat_id, x_min, y_min
         if tw > 1: tw = 1
         if th < 0: th = 0
         if th > 1: th = 1
-    else:  # multiple bounding boxes
+        '''
+    else: # multiple bounding boxes
         a = boxs_default[ious_true]
-        # idx = np.where(ious_true == True)
+        #print(a.shape)
+        idx = np.where(ious_true == True)
         px = boxs_default[ious_true][:, 0]
         py = boxs_default[ious_true][:, 1]
         pw = boxs_default[ious_true][:, 2]
@@ -180,6 +198,7 @@ def match(ann_box, ann_confidence, boxs_default, threshold, cat_id, x_min, y_min
         ty = (gy - py) / ph
         tw = np.log(gw / pw)
         th = np.log(gh / ph)
+        '''
         tx[tx < 0] = 0  # clipping
         tx[tx > 1] = 1
         ty[ty < 0] = 0
@@ -188,15 +207,17 @@ def match(ann_box, ann_confidence, boxs_default, threshold, cat_id, x_min, y_min
         tw[tw > 1] = 1
         th[th < 0] = 0
         th[th > 1] = 1
+        '''
     b = [tx, ty, tw, th]
     ann_box[ious_true, :] = np.asarray([tx, ty, tw, th]).T
     # ann_box[ious_true, :] = [tx, ty, tw, th]
     ann_confidence[ious_true, cat_id] = 1
-    ann_confidence[:, -1] = 0  # not background
+    ann_confidence[ious_true, 3] = 0  # not background
     return ann_box, ann_confidence
 
+
 class COCO(torch.utils.data.Dataset):
-    def __init__(self, imgdir, anndir, class_num, boxs_default, train=True, image_size=320):
+    def __init__(self, imgdir, anndir, class_num, boxs_default, train=True, image_size=320, crop=False):
         self.train = train
         self.imgdir = imgdir
         self.anndir = anndir
@@ -209,7 +230,8 @@ class COCO(torch.utils.data.Dataset):
         
         self.img_names = os.listdir(self.imgdir)
         self.image_size = image_size
-        
+
+        self.crop = crop
         # notice:
         # you can split the dataset into 90% training and 10% validation here, by slicing self.img_names with respect to self.train
 
@@ -219,8 +241,8 @@ class COCO(torch.utils.data.Dataset):
     def __getitem__(self, index):
         ann_box = np.zeros([self.box_num, 4], np.float32)  # bounding boxes
         ann_confidence = np.zeros([self.box_num, self.class_num], np.float32)  # one-hot vectors
-        final_box = np.zeros_like(ann_box)  # for multiple objects
-        final_confidence = np.zeros_like(ann_confidence)  # for multiple objects
+        # final_box = np.zeros_like(ann_box)  # for multiple objects
+        # final_confidence = np.zeros_like(ann_confidence)  # for multiple objects
         # one-hot vectors with four classes
         # [1,0,0,0] -> cat
         # [0,1,0,0] -> dog
@@ -231,7 +253,7 @@ class COCO(torch.utils.data.Dataset):
         
         img_name = self.imgdir+self.img_names[index]
         ann_name = self.anndir+self.img_names[index][:-3]+"txt"
-        
+        cur_name = self.img_names[index][:-4]  # image index
         # TODO:
         # 1. prepare the image [3,320,320], by reading image "img_name" first.
         # 2. prepare ann_box and ann_confidence, by reading txt file "ann_name" first.
@@ -248,7 +270,7 @@ class COCO(torch.utils.data.Dataset):
         height, width, _ = image.shape
         image = cv2.resize(image, (self.image_size, self.image_size))
         image = image.transpose(2, 0, 1)  # [3, 320, 320]
-        if self.train:
+        if self.train:  # no crop
             ann_info = open(ann_name)
             info = ann_info.readlines()
             for object_info in info:
@@ -265,9 +287,26 @@ class COCO(torch.utils.data.Dataset):
                 y_max = ((y_min + h) / height)
                 x_min = (x_min / width)
                 y_min = (y_min / height)
+                if self.crop:  # crop based on object position
+                    crop_xmin = x_min - 0.1  # top left
+                    crop_ymin = y_min - 0.1
+                    crop_xmax = x_max + 0.1  # bottom right
+                    crop_ymax = y_max + 0.1
+                    new_w = crop_xmax - crop_xmin
+                    new_h = crop_ymax - crop_ymin
 
-                ann_box, ann_confidence = match(ann_box, ann_confidence, self.boxs_default, self.threshold, class_id, x_min, y_min, x_max, y_max)
+                    # new box location
+                    box_xmin = new_w - 0.1
+                    box_ymin = new_h - 0.1
+                    box_xmax = new_w + 0.1
+                    box_ymax = new_h + 0.1
+                    # crop
+                    image = image[:, crop_xmin:crop_xmax, crop_ymin:crop_ymax]
+                else:
+                    ann_box, ann_confidence = match(ann_box, ann_confidence, self.boxs_default, self.threshold, class_id, x_min, y_min, x_max, y_max)
 
-                final_box = final_box + ann_box
-                final_confidence = final_confidence + ann_confidence
-        return image, final_box, final_confidence
+                #final_box = final_box + ann_box
+                #final_confidence = final_confidence + ann_confidence
+
+
+        return image, ann_box, ann_confidence, cur_name, height, width
